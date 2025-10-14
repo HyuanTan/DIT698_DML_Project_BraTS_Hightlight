@@ -147,22 +147,42 @@ def overlay(gray: np.ndarray, lbl: np.ndarray, alpha=0.35):
     out = (1-a[...,None])*base + a[...,None]*col
     return np.clip(out,0,1)
 
-def save_montage(examples: List[Tuple[np.ndarray,np.ndarray,np.ndarray]], out_path: Path, cols=4):
+def save_montage(examples, out_path: Path, cols=4):
+    """
+    examples: list of (gray, gt_lbl, pred_lbl)
+    cols: how many samples per row (each sample occupies 5 subplots)
+    """
     import math
+    if not examples:
+        return  # nothing to draw
+
     n = len(examples)
+    per_example = 5                      # T1ce, GT, Pred, Overlay GT, Overlay Pred
     rows = math.ceil(n / cols)
-    fig = plt.figure(figsize=(3.6*cols, 3.2*rows))
+    cols_total = cols * per_example      # total subplot columns
+
+    # figure size: width scales with total columns
+    fig = plt.figure(figsize=(3.0 * cols_total, 3.0 * rows))
     k = 1
-    for (g,gt,pd) in examples:
-        for img, title in [(g,'T1ce'), (colorize(gt),'GT'), (colorize(pd),'Pred'),
-                           (overlay(g,gt),'Overlay GT'), (overlay(g,pd),'Overlay Pred')]:
-            ax = fig.add_subplot(rows, cols, k); k += 1
-            if img.ndim==2: ax.imshow(img, cmap='gray')
-            else: ax.imshow(img)
-            ax.set_title(title, fontsize=10); ax.axis('off')
+    for (g, gt, pd) in examples:
+        for img, title in [
+            (g, 'T1ce'),
+            (colorize(gt), 'GT'),
+            (colorize(pd), 'Pred'),
+            (overlay(g, gt), 'Overlay GT'),
+            (overlay(g, pd), 'Overlay Pred'),
+        ]:
+            ax = fig.add_subplot(rows, cols_total, k); k += 1
+            if img.ndim == 2:
+                ax.imshow(img, cmap='gray')
+            else:
+                ax.imshow(img)
+            ax.set_title(title, fontsize=10)
+            ax.axis('off')
     fig.tight_layout()
     fig.savefig(out_path, dpi=140, bbox_inches='tight')
     plt.close(fig)
+
 
 # ---------------------- model factory ----------------------
 def build_generator(name, ckpt_path: Path, device, in_ch=1, out_ch=4, freeze_ratio=0.75):
@@ -312,8 +332,11 @@ def main():
         return case_d["gray"][idx], case_d["gt"][idx], case_d["pred"][idx]
     best_cases  = [ pick_rep(d) for *_, d in vol_scores[:K] ]
     worst_cases = [ pick_rep(d) for *_, d in vol_scores[-K:][::-1] ]
-    save_montage(best_cases,  outdir / "montage_best.png",  cols=K)
-    save_montage(worst_cases, outdir / "montage_worst.png", cols=K)
+    if best_cases:
+        save_montage(best_cases, outdir / "montage_best.png", cols=K)
+    if worst_cases:
+        save_montage(worst_cases, outdir / "montage_worst.png", cols=K)
+
 
     print(f"Done. CSVs & LaTeX in: {outdir}")
     print(f"- Slices:   {sl_csv}")

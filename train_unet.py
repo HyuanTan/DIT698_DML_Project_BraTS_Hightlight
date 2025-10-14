@@ -249,8 +249,12 @@ def read_list(txt: Path):
 
 def build_joint_transform(crop=240):
     if A is None: return None
+    try:
+        pad = PadIfNeeded(args.crop, args.crop, border_mode=0, value=0, mask_value=0)
+    except TypeError:
+        pad = PadIfNeeded(args.crop, args.crop, border_mode=0, pad_val=0, pad_val_mask=0)
     return A.Compose([
-        A.PadIfNeeded(args.crop, args.crop, border_mode=0, pad_val=0, pad_val_mask=0),
+        pad,
         A.RandomCrop(crop, crop),
         A.HorizontalFlip(p=0.5),
         A.RandomRotate90(p=0.5),

@@ -28,6 +28,8 @@ from torch.utils.tensorboard import SummaryWriter
 from dataset_brats import BrainTumorMRIData
 from models_pix2pix import EncDecGAN, UNetGAN, TLUNetGAN, PatchGAN70
 
+from albumentations import Compose, PadIfNeeded, RandomCrop, HorizontalFlip, RandomRotate90
+
 # ---------- helpers ----------
 def read_list(txt: Path):
     with txt.open('r', encoding='utf-8') as f:
@@ -143,7 +145,7 @@ def main():
     ap.add_argument('--num-workers', type=int, default=4)
     ap.add_argument('--amp', action='store_true')
     ap.add_argument('--outdir', type=str, default='outputs/pix2pix')
-    ap.add_argument('--logdir', type=str, default='runs/pix2pix')
+    ap.add_argument('--logdir', type=str, default='runs')
     ap.add_argument('--lambda-aux', type=float, default=1.0, help='λ1 for aux loss (L1/Dice/Focal)')
     ap.add_argument('--lambda-fm', type=float, default=0.0, help='λfm for Feature Matching')
     ap.add_argument('--aux-loss', choices=['l1','dice','focal'], default='l1')
@@ -155,11 +157,15 @@ def main():
     lists_dir = Path(args.lists)
     outdir = Path(args.outdir); outdir.mkdir(parents=True, exist_ok=True)
     vis_dir = outdir / 'vis'; vis_dir.mkdir(exist_ok=True)
-    writer = SummaryWriter(args.logdir)
+    logdir = outdir / args.logdir; logdir.mkdir(parents=True, exist_ok=True)
+    writer = SummaryWriter(logdir)
 
-    # dataset 
-    from albumentations import Compose, PadIfNeeded, RandomCrop, HorizontalFlip, RandomRotate90
-    jt = Compose([PadIfNeeded(args.crop, args.crop, border_mode=0, pad_val=0, pad_val_mask=0),
+    # dataset
+    try:
+        pad = PadIfNeeded(args.crop, args.crop, border_mode=0, value=0, mask_value=0)
+    except TypeError:
+        pad = PadIfNeeded(args.crop, args.crop, border_mode=0, pad_val=0, pad_val_mask=0)
+    jt = Compose([pad,
                   RandomCrop(args.crop,args.crop),
                   HorizontalFlip(p=0.5),
                   RandomRotate90(p=0.5)])
@@ -203,11 +209,12 @@ def main():
             return focal[:,1:].mean()  # ignore bg
 
     best_iou = -math.inf; bad_epochs = 0; patience = 10
-
+    iteration = 0
     for epoch in range(1, args.epochs+1):
         G.train(); D_raw.train()
         running = {'g':0.0,'d':0.0,'aux':0.0,'gan':0.0,'fm':0.0}
         for batch in train_dl:
+            iteration += 1
             x = batch['image'].to(device)        # (N,1,H,W)
             y = batch['mask'].to(device)         # (N,H,W)
             y_oh = onehot_from_labels(y, C).to(x.dtype)  # (N,C,H,W)
@@ -252,6 +259,7 @@ def main():
             running['aux'] += aux.item()*x.size(0)
             running['gan'] += gan_loss.item()*x.size(0)
             running['fm']  += fm.item()*x.size(0)
+            print(f"iteration:{iteration}, train_loss_encoder:{running['d']/iteration:.4f}, train_loss_decoder:{running['g']/iteration:.4f}")
 
         ntr = len(train_dl.dataset)
         for k in running: running[k] /= ntr

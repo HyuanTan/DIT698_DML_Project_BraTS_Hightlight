@@ -10,3 +10,5 @@ runs/
 *.pth
 readme_bk.md
 .fuse_hidden0003e02b00000006
+archive.zip
+splits_10_bk/

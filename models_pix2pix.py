@@ -105,12 +105,26 @@ class UNetGAN(nn.Module):
         self.u1 = UNetBlockUp(base*2*2, base)
         self.out = nn.ConvTranspose2d(base*2, out_ch, 4, 2, 1)
 
+    def _match_to_ref(self, y, ref):
+        """pad/crop y to match ref's spatial dimensions."""
+        dh = ref.size(2) - y.size(2)
+        dw = ref.size(3) - y.size(3)
+        if dh != 0 or dw != 0:
+            if dh >= 0 and dw >= 0:
+                # center pad: [left, right, top, bottom]
+                y = F.pad(y, [dw//2, dw - dw//2, dh//2, dh - dh//2])
+            else:
+                # if y is larger, center-crop
+                top  = (-dh)//2 if dh < 0 else 0
+                left = (-dw)//2 if dw < 0 else 0
+                y = y[..., top:y.size(2)+dh+top, left:y.size(3)+dw+left]
+        return y
     def forward(self, x):
         e1 = self.d1(x); e2 = self.d2(e1); e3 = self.d3(e2); e4 = self.d4(e3); e5 = self.d5(e4)
-        y  = self.u4(e5); y = torch.cat([y, e4], dim=1)
-        y  = self.u3(y);  y = torch.cat([y, e3], dim=1)
-        y  = self.u2(y);  y = torch.cat([y, e2], dim=1)
-        y  = self.u1(y);  y = torch.cat([y, e1], dim=1)
+        y  = self.u4(e5);  y = self._match_to_ref(y, e4); y = torch.cat([y, e4], dim=1)
+        y  = self.u3(y);   y = self._match_to_ref(y, e3); y = torch.cat([y, e3], dim=1)
+        y  = self.u2(y);   y = self._match_to_ref(y, e2); y = torch.cat([y, e2], dim=1)
+        y  = self.u1(y);   y = self._match_to_ref(y, e1); y = torch.cat([y, e1], dim=1)
         return self.out(y)  # logits
 
 # ------------------ C) Transfer-learning UNet encoder ------------------
@@ -143,23 +157,43 @@ class TLUNetGAN(nn.Module):
         for i, p in enumerate(res.parameters()):
             p.requires_grad = (i >= k)
 
+    def _match_to_ref(self, y, ref):
+        """pad/crop y to match ref's spatial dimensions."""
+        dh = ref.size(2) - y.size(2)
+        dw = ref.size(3) - y.size(3)
+        # pad case (y smaller than ref)
+        if dh >= 0 and dw >= 0:
+            return F.pad(y, [dw//2, dw - dw//2, dh//2, dh - dh//2])
+        # crop case (y larger than ref)
+        top  = (-dh)//2 if dh < 0 else 0
+        left = (-dw)//2 if dw < 0 else 0
+        return y[..., top: y.size(2)+dh+top, left: y.size(3)+dw+left]
+
     def forward(self, x):
         x  = self.stem(x)
-        e1 = self.enc1(x)         # H/2
-        e2 = self.pool(e1)        # H/4
+        e1 = self.enc1(x)         # /2
+        e2 = self.pool(e1)        # /4
         e2 = self.enc2(e2)
-        e3 = self.enc3(e2)        # H/8
-        e4 = self.enc4(e3)        # H/16
-        e5 = self.enc5(e4)        # H/32
-        y  = self.up4(e5)         # /16
-        y  = torch.cat([y, e4], 1)
-        y  = self.up3(y)          # /8
-        y  = torch.cat([y, e3], 1)
-        y  = self.up2(y)          # /4
-        y  = torch.cat([y, e2], 1)
-        y  = self.up1(y)          # /2
-        y  = torch.cat([y, e1], 1)
-        return self.out(y)        # /1, logits
+        e3 = self.enc3(e2)        # /8
+        e4 = self.enc4(e3)        # /16
+        e5 = self.enc5(e4)        # /32
+
+        y  = self.up4(e5)         # -> /16
+        y  = self._match_to_ref(y, e4);  y = torch.cat([y, e4], 1)
+
+        y  = self.up3(y)          # -> /8
+        y  = self._match_to_ref(y, e3);  y = torch.cat([y, e3], 1)
+
+        y  = self.up2(y)          # -> /4
+        y  = self._match_to_ref(y, e2);  y = torch.cat([y, e2], 1)
+
+        y  = self.up1(y)          # -> /2
+        y  = self._match_to_ref(y, e1);  y = torch.cat([y, e1], 1)
+
+        out = self.out(y)         # -> /1
+        # the last layer may need pad/crop to match input size
+        out = self._match_to_ref(out, x)   # Note: can use x (after stem) or original input
+        return out
 
 # ------------------ PatchGAN 70x70 ------------------
 class PatchGAN70(nn.Module):
