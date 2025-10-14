@@ -1,0 +1,12 @@
+brats2020-training-data/
+splits_10/
+splits_50/
+outputs/
+logs/
+__pycache__/
+runs/
+*.pyc
+*.pkl
+*.pth
+readme_bk.md
+.fuse_hidden0003e02b00000006
