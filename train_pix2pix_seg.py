@@ -30,6 +30,8 @@ from models_pix2pix import EncDecGAN, UNetGAN, TLUNetGAN, PatchGAN70
 
 from albumentations import Compose, PadIfNeeded, RandomCrop, HorizontalFlip, RandomRotate90
 
+from visualize import *
+
 # ---------- helpers ----------
 def read_list(txt: Path):
     with txt.open('r', encoding='utf-8') as f:
@@ -151,6 +153,8 @@ def main():
     ap.add_argument('--aux-loss', choices=['l1','dice','focal'], default='l1')
     ap.add_argument('--freeze-ratio', type=float, default=0.75, help='for tl_unet encoder')
     ap.add_argument('--crop', type=int, default=240)
+    ap.add_argument('--plot-it-every', type=int, default=100, help='plot iteration curves every N iters')
+
     args = ap.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -173,6 +177,8 @@ def main():
     val_ds   = BrainTumorMRIData(read_list(lists_dir/'val.txt'),   return_onehot=False, joint_transform=None)
     train_dl = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True,  num_workers=args.num_workers, pin_memory=True)
     val_dl   = DataLoader(val_ds,   batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+
+    plotter = TrainVisualizer(outdir, it_plot_every=args.plot_it_every, ema_alpha=0.1)
 
     C = 4  # classes (0 bg + 1/2/3)
     G = build_generator(args.gen, in_ch=1, out_ch=C, freeze_ratio=args.freeze_ratio).to(device)
@@ -209,12 +215,11 @@ def main():
             return focal[:,1:].mean()  # ignore bg
 
     best_iou = -math.inf; bad_epochs = 0; patience = 10
-    iteration = 0
     for epoch in range(1, args.epochs+1):
         G.train(); D_raw.train()
         running = {'g':0.0,'d':0.0,'aux':0.0,'gan':0.0,'fm':0.0}
-        for batch in train_dl:
-            iteration += 1
+        # for batch in train_dl:
+        for batch_idx, batch in enumerate(train_dl):
             x = batch['image'].to(device)        # (N,1,H,W)
             y = batch['mask'].to(device)         # (N,H,W)
             y_oh = onehot_from_labels(y, C).to(x.dtype)  # (N,C,H,W)
@@ -259,7 +264,15 @@ def main():
             running['aux'] += aux.item()*x.size(0)
             running['gan'] += gan_loss.item()*x.size(0)
             running['fm']  += fm.item()*x.size(0)
-            print(f"iteration:{iteration}, train_loss_encoder:{running['d']/iteration:.4f}, train_loss_decoder:{running['g']/iteration:.4f}")
+            print(f"iteration:{batch_idx}, train_loss_encoder:{running['d']/batch_idx:.4f}, train_loss_decoder:{running['g']/batch_idx:.4f}")
+
+            global_iter = (epoch-1)*len(train_dl) + (batch_idx if 'batch_idx' in locals() else 0)
+            plotter.log_iter(global_iter,
+                            g=total.item(),
+                            d=d_loss.item(),
+                            gan=gan_loss.item(),
+                            aux=aux.item(),
+                            fm=fm.item() if isinstance(fm, torch.Tensor) else float(fm))
 
         ntr = len(train_dl.dataset)
         for k in running: running[k] /= ntr
@@ -281,6 +294,10 @@ def main():
                              tag=args.gen.upper())
         iou_fg = tot_iou_fg/max(1,n)
         dice_fg = tot_dice_fg/max(1,n)
+
+        plotter.log_epoch(epoch, val_loss=val_loss, val_iou=val_fg, val_dice=val_fg, 
+                  lr=optimizer.param_groups[0]['lr'])
+
 
         # logs
         writer.add_scalar('train/G_total', running['g'], epoch)
@@ -308,6 +325,11 @@ def main():
 
     writer.close()
     print(f"Done. Best IoU_fg={best_iou:.4f}. Models & visuals at: {outdir}")
+
+    plotter.plot_iteration_curves()
+    plotter.plot_epoch_curves()
+    plotter.close()
+
 
 if __name__ == "__main__":
     main()
