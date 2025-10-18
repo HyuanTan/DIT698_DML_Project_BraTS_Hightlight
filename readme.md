@@ -1,7 +1,9 @@
 # Install
 Base on `dml`:
 ```
-pip install -U brainles_preprocessing brats_toolkit auxiliary > /dev/null
+pip install -U brainles_preprocessing brats_toolkit auxiliary
+
+pip install -U segmentation-models-pytorch torchmetrics --quiet
 ```
 
 # Data preprocess
