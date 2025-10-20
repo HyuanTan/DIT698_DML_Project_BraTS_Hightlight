@@ -1,16 +1,18 @@
 # Install
 Base on `dml`:
 ```
-<!-- pip install -U brainles_preprocessing brats_toolkit auxiliary -->
-
 pip install -U segmentation-models-pytorch torchmetrics --quiet
 
 pip install h5py
-<!-- albumentations>=1.4.0 opencv-python-headless -->
 ```
 
 # Data preprocess
-We unzip the `archive.zip` and rename the folder to `brats2020-training-data`
+We unzip the `archive.zip` and rename the folder to `brats2020-training-data`. Put `brats2020-training-data` and `BraTS2D_segmentation**.ipynb` in the same folder.
 
-# Train
-Details can be seen in  `BraTS2D_segmentation.ipynb`
+# Train&Evaluate
+Details can be seen in  `BraTS2D_segmentation**.ipynb`
+
+`BraTS2D_segmentation_googlecloud.ipynb` use the whole dataset [Brain Tumor Segmentation(BraTS2020)](https://www.kaggle.com/datasets/awsaf49/brats2020-training-data/data). We train and test the model using **GoogleCloud** Compute Engine, `GPU L4`.
+
+
+`BraTS2D_segmentation_localGPU.ipynb` use half of the [Brain Tumor Segmentation(BraTS2020)](https://www.kaggle.com/datasets/awsaf49/brats2020-training-data/data)  dataset as a subset and train on `RTX4060Ti`.
