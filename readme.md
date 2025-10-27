@@ -26,3 +26,6 @@ Train on **GoogleCloud** Compute Engine, `GPU L4` using whole dataset.(**Trainin
 - Using same cost function instead of copy many times
 - Add Learning Rate Scheduler and Scaler to all model
 - Add early stop
+
+*2025-10-27*\
+`BraTS2D_segmentation_googlecloud_resume.ipynb` is base on `BraTS2D_segmentation_googlecloud.ipynb`, resume Transfer-learning UNet encoder to 20 epochs.
