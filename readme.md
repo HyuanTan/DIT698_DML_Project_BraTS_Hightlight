@@ -15,16 +15,14 @@ Details can be seen in  `BraTS2D_segmentation**.ipynb`
 Update Note:
 
 *2025-10-19*\
-`BraTS2D_segmentation_googlecloud.ipynb` use the whole dataset [Brain Tumor Segmentation(BraTS2020)](https://www.kaggle.com/datasets/awsaf49/brats2020-training-data/data). We train and test the model using **GoogleCloud** Compute Engine, `GPU L4`.(Training Finished)
+`BraTS2D_segmentation_googlecloud.ipynb` use the whole dataset [Brain Tumor Segmentation(BraTS2020)](https://www.kaggle.com/datasets/awsaf49/brats2020-training-data/data). We train and test the model using **GoogleCloud** Compute Engine, `GPU L4`.(**Training Finished**)
 
 
-`BraTS2D_segmentation_localGPU.ipynb` use half of the [Brain Tumor Segmentation(BraTS2020)](https://www.kaggle.com/datasets/awsaf49/brats2020-training-data/data)  dataset as a subset and train on `RTX4060Ti`.(Training Finished)
+`BraTS2D_segmentation_localGPU.ipynb` use half of the [Brain Tumor Segmentation(BraTS2020)](https://www.kaggle.com/datasets/awsaf49/brats2020-training-data/data)  dataset as a subset and train on `RTX4060Ti`.(**Training Finished**)
 
-*2025-10-20*\
-Train on `RTX4060Ti`.(Training NOT Finished)
+*2025-10-26*\
+Train on **GoogleCloud** Compute Engine, `GPU L4` using whole dataset.(**Training Not Finished**)
 **Update BraTS2D_segmentation.ipynb**：
 - Using same cost function instead of copy many times
 - Add Learning Rate Scheduler and Scaler to all model
-
-**TODO:**
 - Add early stop
