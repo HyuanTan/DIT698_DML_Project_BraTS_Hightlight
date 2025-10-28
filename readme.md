@@ -31,3 +31,14 @@ Train on **GoogleCloud** Compute Engine, `GPU L4` using whole dataset.(**Trainin
 `BraTS2D_segmentation_googlecloud_resume.ipynb` is base on `BraTS2D_segmentation_googlecloud.ipynb`, using the whole dataset [Brain Tumor Segmentation(BraTS2020)](https://www.kaggle.com/datasets/awsaf49/brats2020-training-data/data) and train/test the model using **GoogleCloud** Compute Engine, `GPU L4`.
 
 `BraTS2D_segmentation_googlecloud_resume.ipynb` resumed Transfer-learning UNet encoder from 16 to 20 epochs and optimize visual layout. The **final version for report**. (**Training Finished**)
+
+![EncoderDecoder](./doc_images/EncoderDecoder.png)
+$$
+\text{Figure 1. Encoder-Decoder.}
+$$
+
+
+![Unet](./doc_images/Unet.png)
+$$
+\text{Figure 2. Unet.}
+$$
